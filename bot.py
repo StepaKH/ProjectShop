@@ -42,7 +42,7 @@ def welcome(message):
 @bot.message_handler(commands=['order'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'заказ')
 def order(message):
-    bot.delete_message(message.chat.id, message.message_id - 2)
+    #bot.delete_message(message.chat.id, message.message_id - 2)
     bot.send_message(message.chat.id, "Процесс создания заказа начат. Пожалуйста, следуйте инструкциям.", reply_markup=types.ReplyKeyboardRemove())
     bot.send_message(message.chat.id, "Введите, пожалуйста, <b>артикул</b> товара\n"
                                       "<b>Пример ввода: 875234</b>\n\n"
@@ -160,7 +160,7 @@ def noneContent(message):
 def callback_message(callback):
     if callback.data == 'status':
         bot.send_message(callback.message.chat.id,'Перенаправляю Вас на моего коллегу, регистрация в один клик, далее введите <b>/add (номер вашего заказа)</b>, а затем <b>/tracks</b>. Также напоминаю, что по правилам нашего магазина (далее правила по срокам доставки)\n\n' + "Ссылка -> https://t.me/RLabbot",parse_mode='html')
-        bot.delete_message(callback.message.chat.id, callback.message.message_id)
+       # bot.delete_message(callback.message.chat.id, callback.message.message_id)
     elif callback.data == 'order':
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item1 = types.KeyboardButton("Заказ")
@@ -184,7 +184,7 @@ def callback_message(callback):
         bot.send_message(callback.message.chat.id, "Нужна ли вам дополнительная консультация с нашим менеджером по поводу заказа?\n\n"
                                                    "Выберите <b>Консультация</b>, если нужна\n"
                                                    "Выберите <b>Продолжаем</b>, если не нужна", parse_mode='html', reply_markup=markup)
-        bot.delete_message(callback.message.chat.id,callback.message.message_id)
+        #bot.delete_message(callback.message.chat.id,callback.message.message_id)
     elif callback.data == 'false_enter':
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item1 = types.KeyboardButton("Заказ")
@@ -198,6 +198,8 @@ def callback_message(callback):
         markup.row(bottom1, bottom2)
         markup.add(bottom3)
         bot.send_message(callback.message.chat.id, f'Выберите, пожалуйста, какие данные поменялись🙃', reply_markup=markup)
+
+    bot.edit_message_text(chat_id=callback.message.chat.id, message_id=callback.message.message_id, text = 'Continue....', reply_markup=None)
 
 
 
