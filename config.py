@@ -11,3 +11,12 @@ phone = None
 tg_id = None
 user_data = None
 #
+
+#Inf product
+token = None
+name = None
+price = None
+width = None
+photo = None
+product_data = None
+#

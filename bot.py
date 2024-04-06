@@ -1,3 +1,4 @@
+import getInfAboutProduct
 import telebot
 import config
 import takeToken
@@ -7,7 +8,8 @@ import editUser
 
 from telebot import types
 
-token = 123
+from io import BytesIO
+import os
 
 bot = telebot.TeleBot(config.TOKEN)
 
@@ -48,9 +50,43 @@ def order(message):
                                       "<b>Пример ввода: 875234</b>\n\n"
                                       "Если вы забыли артикул товара, то можете перейти обратно в основной канал и посмотреть его\n"
                                       "<b>Вот ссылка -> https://t.me/bravissimo_nn</b>", parse_mode='html')
-
+    bot.register_next_step_handler(message, get_token)
     #Обработка индефикатора и подтверждение правильности выбора товара
+def get_token(message):
+    config.token = message.text.strip()
+    config.product_data = getInfAboutProduct.get_product_data(config.token)
+    #Проверка на существование
 
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    bottom1 = types.KeyboardButton("Верно")
+    bottom2 = types.KeyboardButton("Неверно")
+    markup.row(bottom1, bottom2)
+
+    bot.send_message(message.chat.id, "Проверьте, пожалуйста, что вы правильно ввели артикул\n"
+                                      "Данные по данному артикулу:")
+    name = config.product_data[1]
+    price = config.product_data[3]
+    width = config.product_data[4]
+    token = config.product_data[5]
+    photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
+    # Сохранение бинарных данных фотографии в файл
+    with open(f'{name}.jpg', 'wb') as file:
+        file.write(photo)
+    # Отправка сообщения с данными о товаре и фотографией
+    bot.send_message(message.chat.id, f'Name: {name}\n Price: {price}\n Width: {width}\n Token: {token}')
+    bot.send_photo(message.chat.id, open(f'{name}.jpg', 'rb'), reply_markup=markup)
+    os.remove(f'{name}.jpg')
+    #Проверка на правильный выбор
+    bot.register_next_step_handler(message, check_product)
+def check_product(message):
+    if (message.text.strip() == 'Неверно'):
+        order(message)
+    elif (message.text.strip() == 'Верно'):
+        get_info_user(message)
+    else:
+        bot.send_message(message.chat.id, "Выберите одну из кнопок: Верно или Невернно")
+        bot.register_next_step_handler(message, check_product)
+def get_info_user(message):
     #Register users
     config.user_data = checkUser.get_user_data(message.from_user.id)
     if (config.user_data):
@@ -91,9 +127,28 @@ def user_phone(message):
 @bot.message_handler(commands=['advice'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'консультация')
 def consult(message):
-    bot.send_message(config.manager_id, f'Информация по заказу с артикулом - {token}\n'
+    bot.send_message(config.manager_id, f'Консультация!\n'
+                                        f'Информация о пользователе:\n'
+                                        f'Ник пользователя - {message.from_user.username}\n'
                                         f'ФИО - {config.name}\n'
                                         f'Номер телефона - {config.phone}')
+
+    name = config.product_data[1]
+    price = config.product_data[3]
+    width = config.product_data[4]
+    token = config.product_data[5]
+    photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
+    # Сохранение бинарных данных фотографии в файл
+    with open(f'{name}.jpg', 'wb') as file:
+        file.write(photo)
+    # Отправка сообщения с данными о товаре и фотографией
+    bot.send_message(config.manager_id, f'Информация о заказе с артикулом - {token}:\n'
+                                        f'Название: {name}\n'
+                                        f'Цена: {price}\n'
+                                        f'Ширина: {width}\n'
+                                        f'Фотография:')
+    bot.send_photo(config.manager_id, open(f'{name}.jpg', 'rb'))
+    os.remove(f'{name}.jpg')
 
     bot.send_message(message.chat.id,f'Перейдите по следующей ссылке, чтобы связаться с менеджером. Обязательно отправьте артикул своего товара, чтобы менеджер смог вас понять)\n\n'
                                      f'<b>Переходи сюда</b> -> https://t.me/res12245', parse_mode='html')
@@ -209,6 +264,7 @@ def callback_message(callback):
 @bot.message_handler()
 def info(message):
     if (message.text.lower() == 'привет'):
+        bot.send_message(message.chat.id, "😕")
         bot.send_message(message.chat.id, "Добро пожаловать, {0.first_name}!\n "
                                           "Я - <b>электронный сотрудник магазина по продаже тканей</b>, бот созданный чтобы помочь тебе сделать заказ.".format(message.from_user, bot.get_me()),
                          parse_mode='html')
