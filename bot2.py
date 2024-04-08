@@ -69,8 +69,8 @@ def get_photo(message):
     bottom2 = types.InlineKeyboardButton('Неверно', callback_data='false')
     markup.row(bottom1,bottom2)
 
-    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n Name: {name_product}\n Price: {price_product}\n Width: {width_product}')
-    bot.send_photo(message.chat.id, photo_product, reply_markup=markup)
+    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, введенные данные на корректность:')
+    bot.send_photo(message.chat.id, photo_product, caption=f'Name: {name_product}\n Price: {price_product}\n Width: {width_product}', reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda callback: True)

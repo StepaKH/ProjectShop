@@ -8,12 +8,23 @@ import editUser
 
 from telebot import types
 
+import re
 from io import BytesIO
 import os
 
 bot = telebot.TeleBot(config.TOKEN)
 
+def mainKeyboard():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    bottom1 = types.KeyboardButton("Главная")
+    bottom2 = types.KeyboardButton("Консультация")
+    bottom3 = types.KeyboardButton("Заказ")
+    markup.row(bottom1, bottom2)
+    markup.add(bottom3)
+    return markup
+
 @bot.message_handler(commands = ['start', 'main', 'hello'])
+@bot.message_handler(func=lambda message: message.text.lower() == 'главная')
 def welcome(message):
     #DB
     conn = sqlite3.connect('shop.sql')
@@ -56,28 +67,31 @@ def get_token(message):
     config.token = message.text.strip()
     config.product_data = getInfAboutProduct.get_product_data(config.token)
     #Проверка на существование
+    if (not config.product_data):
+        bot.send_message(message.chat.id, f'К сожалению такого артикула не существует😢\n'
+                         f'Попробуйте снова!')
+        order(message)
+    else:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        bottom1 = types.KeyboardButton("Верно")
+        bottom2 = types.KeyboardButton("Неверно")
+        markup.row(bottom1, bottom2)
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    bottom1 = types.KeyboardButton("Верно")
-    bottom2 = types.KeyboardButton("Неверно")
-    markup.row(bottom1, bottom2)
-
-    bot.send_message(message.chat.id, "Проверьте, пожалуйста, что вы правильно ввели артикул\n"
-                                      "Данные по данному артикулу:")
-    name = config.product_data[1]
-    price = config.product_data[3]
-    width = config.product_data[4]
-    token = config.product_data[5]
-    photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
-    # Сохранение бинарных данных фотографии в файл
-    with open(f'{name}.jpg', 'wb') as file:
-        file.write(photo)
-    # Отправка сообщения с данными о товаре и фотографией
-    bot.send_message(message.chat.id, f'Name: {name}\n Price: {price}\n Width: {width}\n Token: {token}')
-    bot.send_photo(message.chat.id, open(f'{name}.jpg', 'rb'), reply_markup=markup)
-    os.remove(f'{name}.jpg')
-    #Проверка на правильный выбор
-    bot.register_next_step_handler(message, check_product)
+        bot.send_message(message.chat.id, "Проверьте, пожалуйста, что вы правильно ввели артикул\n"
+                                          "Данные по данному артикулу:")
+        name = config.product_data[1]
+        price = config.product_data[3]
+        width = config.product_data[4]
+        token = config.product_data[5]
+        photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
+        # Сохранение бинарных данных фотографии в файл
+        with open(f'{name}.jpg', 'wb') as file:
+            file.write(photo)
+        # Отправка сообщения с данными о товаре и фотографией
+        bot.send_photo(message.chat.id, open(f'{name}.jpg', 'rb'), caption = f'Name: {name}\n Price: {price}\n Width: {width}\n Token: {token}', reply_markup=markup)
+        os.remove(f'{name}.jpg')
+        #Проверка на правильный выбор
+        bot.register_next_step_handler(message, check_product)
 def check_product(message):
     if (message.text.strip() == 'Неверно'):
         order(message)
@@ -99,40 +113,49 @@ def get_info_user(message):
         config.phone = config.user_data[3]
         config.tg_id = config.user_data[2]
 
-        bot.send_message(message.chat.id, f'Вы уже были в нашем магазине, и у нас есть ваши данные😁\n'
-                                          f'Проверьте, пожалуйста, текущие данные на корректность:\n'
+        bot.send_message(message.chat.id,f'Вы уже были в нашем магазине, и у нас есть ваши данные😁', reply_markup=types.ReplyKeyboardRemove())
+        bot.send_message(message.chat.id, f'Проверьте, пожалуйста, текущие данные на корректность:\n\n'
                                           f'ФИО: {config.name}\n'
                                           f'Номер телефона: {config.phone}', reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "Сейчас нужно вас зарегестрирвоать!\n"
-                                          "Введите, пожалуйста, свои: Фамилия, Имя, Отчество")
+                                          "Введите, пожалуйста, свои: Фамилия, Имя, Отчество", reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(message, user_name)
 def user_name(message):
-    config.name = message.text.strip()
-    bot.send_message(message.chat.id, "Введите свой номер телефона " + config.name)
-    bot.register_next_step_handler(message, user_phone)
+    full_name = message.text.strip()
+    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', full_name):
+        # Ввод пользователя соответствует формату Фамилия Имя Отчество
+        config.name = full_name
+        bot.send_message(message.chat.id, "Введите свой номер телефона в форматах:\n"
+                                          "89*********\n"
+                                          "+79*********")
+        bot.register_next_step_handler(message, user_phone)
+    else:
+        # Ввод пользователя не соответствует формату ФИО
+        bot.send_message(message.chat.id, "Пожалуйста, введите Фамилию Имя Отчество в правильном формате.")
+        bot.register_next_step_handler(message, user_name)
 def user_phone(message):
-    config.phone = message.text.strip()
-    config.tg_id = message.from_user.id
+    phone_number = message.text.strip()
+    if re.match(r'^(\+7|8)9\d{9}$', phone_number):
+        # Введенный номер телефона соответствует формату
+        config.phone = message.text.strip()
+        config.tg_id = message.from_user.id
 
-    markup = types.InlineKeyboardMarkup()
-    bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-    bottom2 = types.InlineKeyboardButton('Неверно', callback_data='false_enter')
-    markup.row(bottom1,bottom2)
+        markup = types.InlineKeyboardMarkup()
+        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='false_enter')
+        markup.row(bottom1,bottom2)
 
-    bot.send_message(message.chat.id, f'Мы закончили небольшую регистрацию🔥')
-    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}', reply_markup=markup)
-
+        bot.send_message(message.chat.id, f'Мы закончили небольшую регистрацию🔥')
+        bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}', reply_markup=markup)
+    else:
+        # Неверный формат номера телефона
+        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона.")
+        bot.register_next_step_handler(message, user_phone)
 
 @bot.message_handler(commands=['advice'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'консультация')
 def consult(message):
-    bot.send_message(config.manager_id, f'Консультация!\n'
-                                        f'Информация о пользователе:\n'
-                                        f'Ник пользователя - {message.from_user.username}\n'
-                                        f'ФИО - {config.name}\n'
-                                        f'Номер телефона - {config.phone}')
-
     name = config.product_data[1]
     price = config.product_data[3]
     width = config.product_data[4]
@@ -142,16 +165,20 @@ def consult(message):
     with open(f'{name}.jpg', 'wb') as file:
         file.write(photo)
     # Отправка сообщения с данными о товаре и фотографией
-    bot.send_message(config.manager_id, f'Информация о заказе с артикулом - {token}:\n'
+    bot.send_photo(config.manager_id, open(f'{name}.jpg', 'rb'), caption= f'Консультация!\n'
+                                        f'Информация о заказе с артикулом - {token}:\n'
                                         f'Название: {name}\n'
                                         f'Цена: {price}\n'
-                                        f'Ширина: {width}\n'
-                                        f'Фотография:')
-    bot.send_photo(config.manager_id, open(f'{name}.jpg', 'rb'))
+                                        f'Ширина: {width}\n\n'
+                                                                          
+                                        f'Информация о пользователе:\n'
+                                        f'Ник пользователя - {message.from_user.username}\n'
+                                        f'ФИО - {config.name}\n'
+                                        f'Номер телефона - {config.phone}')
     os.remove(f'{name}.jpg')
 
     bot.send_message(message.chat.id,f'Перейдите по следующей ссылке, чтобы связаться с менеджером. Обязательно отправьте артикул своего товара, чтобы менеджер смог вас понять)\n\n'
-                                     f'<b>Переходи сюда</b> -> https://t.me/res12245', parse_mode='html')
+                                     f'<b>Переходи сюда</b> -> https://t.me/res12245', parse_mode='html', reply_markup=types.ReplyKeyboardRemove())
 
 
 @bot.message_handler(commands=['edit_name'])
