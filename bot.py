@@ -184,52 +184,75 @@ def consult(message):
 @bot.message_handler(commands=['edit_name'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'фио')
 def name(message):
-    bot.send_message(message.chat.id, "Введите, пожалуйста, свои: Фамилия, Имя, Отчество")
+    bot.send_message(message.chat.id, "Введите, пожалуйста, свои: Фамилия, Имя, Отчество", reply_markup=types.ReplyKeyboardRemove())
     bot.register_next_step_handler(message, get_name)
 def get_name(message):
-    config.name = message.text.strip()
-    editUser.update_user_name(config.name, config.tg_id)
-    markup = types.InlineKeyboardMarkup()
-    bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-    bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-    markup.row(bottom1, bottom2)
-    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
-
+    full_name = message.text.strip()
+    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', full_name):
+        config.name = full_name
+        editUser.update_user_name(config.name, config.tg_id)
+        markup = types.InlineKeyboardMarkup()
+        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+        markup.row(bottom1, bottom2)
+        bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
+    else:
+        # Ввод пользователя не соответствует формату ФИО
+        bot.send_message(message.chat.id, "Пожалуйста, введите Фамилию Имя Отчество в правильном формате.")
+        bot.register_next_step_handler(message, get_name)
 
 
 @bot.message_handler(commands=['edit_phone'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'номер')
 def phone(message):
-    bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер")
+    bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер", reply_markup=types.ReplyKeyboardRemove())
     bot.register_next_step_handler(message, get_phone)
 def get_phone(message):
-    config.phone = message.text.strip()
-    editUser.update_user_name(config.phone, config.tg_id)
-    markup = types.InlineKeyboardMarkup()
-    bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-    bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-    markup.row(bottom1, bottom2)
-    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
-
+    phone_number = message.text.strip()
+    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$', phone_number):
+        config.phone = phone_number
+        editUser.update_user_name(config.phone, config.tg_id)
+        markup = types.InlineKeyboardMarkup()
+        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+        markup.row(bottom1, bottom2)
+        bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
+    else:
+        # Неверный формат номера телефона
+        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона.")
+        bot.register_next_step_handler(message, get_phone)
 
 
 @bot.message_handler(commands=['edit_all'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'все')
 def name_from_all(message):
-    bot.send_message(message.chat.id, "Введите, пожалуйста, свои: Фамилия, Имя, Отчество")
+    bot.send_message(message.chat.id, "Введите, пожалуйста, свои: Фамилия, Имя, Отчество", reply_markup=types.ReplyKeyboardRemove())
     bot.register_next_step_handler(message, get_name_from_all)
 def get_name_from_all(message):
-    config.name = message.text.strip()
-    bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер")
-    bot.register_next_step_handler(message, get_all)
+    full_name = message.text.strip()
+    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', full_name):
+        config.name = full_name
+        bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер")
+        bot.register_next_step_handler(message, get_all)
+    else:
+        # Ввод пользователя не соответствует формату ФИО
+        bot.send_message(message.chat.id, "Пожалуйста, введите Фамилию Имя Отчество в правильном формате.")
+        bot.register_next_step_handler(message, get_name_from_all)
 def get_all(message):
-    config.phone = message.text.strip()
-    editUser.update_user_all(config.phone, config.name, config.tg_id)
-    markup = types.InlineKeyboardMarkup()
-    bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-    bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-    markup.row(bottom1, bottom2)
-    bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
+    phone_number = message.text.strip()
+    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$', phone_number):
+        config.phone = message.text.strip()
+        editUser.update_user_all(config.phone, config.name, config.tg_id)
+        markup = types.InlineKeyboardMarkup()
+        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+        markup.row(bottom1, bottom2)
+        bot.send_message(message.chat.id,f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {config.name}\n Номер телефона: {config.phone}',reply_markup=markup)
+    else:
+        # Неверный формат номера телефона
+        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона.")
+        bot.register_next_step_handler(message, get_all)
+
 
 
 
@@ -299,7 +322,6 @@ def info(message):
         bot.reply_to(message, f'ID: {message.from_user.id}')
     else:
         bot.reply_to(message, f'Извините, {message.from_user.first_name}, я не умею обрабатывать такие сообщения((')
-
 
 
 
