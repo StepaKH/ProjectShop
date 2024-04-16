@@ -1,6 +1,7 @@
 import telebot
 import config
 import sqlite3
+import takeToken
 
 import random
 
@@ -30,17 +31,36 @@ def start(message):
     conn.close()
     ###
 
-    markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton("Получить артикул", callback_data='token')
-    markup.add(btn1)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Получить артикул")
+    btn2 = types.KeyboardButton("Удалить товар")
+    markup.row(btn1,btn2)
 
-    bot.send_message(message.chat.id, "Нажмите на кнопку <b><u>получить артикул</u></b>, после чего внесите все необходимые данные", parse_mode='html', reply_markup=markup)
+    bot.send_message(message.chat.id, "Нажмите на кнопку <b><u>получить артикул</u></b>, после чего внесите все необходимые данные, или нажмите на кнопку <b><u>удалить товар</u></b>, после чего внесите артикул товара, который нужно убрать из базы данных", parse_mode='html', reply_markup=markup)
+
+@bot.message_handler(func=lambda message: message.text.lower() == 'удалить товар')
+def getart(message):
+    bot.send_message(message.chat.id, "Введите, пожалуйста, aртикул товара, который требуется удалить", reply_markup=types.ReplyKeyboardRemove())
+    bot.register_next_step_handler(message, delete_articul)
+def delete_articul(message):
+    num_del = str(message.text.strip())
+    takeToken.delete_art(num_del)
+    bot.send_message(message.chat.id, "Товар успешно удален!")
 
 @bot.message_handler(commands = ['get'])
-@bot.message_handler(func=lambda message: message.text.lower() == 'получить')
+@bot.message_handler(func=lambda message: message.text.lower() == 'получить артикул')
+
 def get(message):
-    bot.send_message(message.chat.id, "Введите, пожалуйста, название товара")
-    bot.register_next_step_handler(message, get_name)
+    random_number = takeToken.generate_unique_token()
+    if random_number == None:
+        bot.send_message(message.chat.id,
+                         f'К сожалению невозможно сгенерировать артикул, т к база данных переполненна😢\n'
+                         f'Удалите неактуальные товары, пожалуйста!')
+        getart(message)
+    else:
+        bot.send_message(message.chat.id, "Введите, пожалуйста, название товара", reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(message, get_name)
+
 def get_name(message):
     global name_product
     name_product = message.text.strip()
@@ -75,19 +95,18 @@ def get_photo(message):
 
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
-    if callback.data == 'token':
-        bot.send_message(callback.message.chat.id, "Введите - <b>получить</b>", parse_mode='html')
-    elif callback.data == 'true':
-        random_number = random.randint(100000, 999999)
-        conn = sqlite3.connect('shop.sql')
-        cur = conn.cursor()
-        cur.execute(
+    if callback.data == 'true':
+          random_number = takeToken.generate_unique_token()
+          conn = sqlite3.connect('shop.sql')
+          cur = conn.cursor()
+          cur.execute(
+
             f"INSERT INTO tokens (name, photo, price, width, token) VALUES (?, ?, ?, ?, ?)",
             (name_product, photo_product, price_product, width_product, random_number))
-        conn.commit()
-        cur.close()
-        conn.close()
-        bot.send_message(callback.message.chat.id, f"Товар успешно сохранен!\n"
+          conn.commit()
+          cur.close()
+          conn.close()
+          bot.send_message(callback.message.chat.id, f"Товар успешно сохранен!\n"
                                                    f"Вот сгенерированный артикул - {random_number}")
     elif callback.data == 'false':
         bot.send_message(callback.message.chat.id, "Введите - <b>получить</b>", parse_mode='html')

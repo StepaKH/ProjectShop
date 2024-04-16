@@ -5,6 +5,7 @@ import takeToken
 import sqlite3
 import checkUser
 import editUser
+import checkCard
 
 from telebot import types
 
@@ -43,7 +44,7 @@ def welcome(message):
     conn.close()
     ###
 
-    user_states[message.chat.id] = {'name': None, 'phone': None, 'tgId': None}
+    user_states[message.chat.id] = {'name': None, 'phone': None, 'tgId': None, 'card': 0}
     sti = open('static/welcome.webp', 'rb')
 
     bot.send_sticker(message.chat.id, sti)
@@ -203,7 +204,7 @@ def consult(message):
     # price = config.product_data[3]
     # width = config.product_data[4]
     # token = config.product_data[5]
-    # photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
+    # photo = config.product_data[2]  #Бинарные данные фотографии из базы данных
 
     # Сохранение бинарных данных фотографии в файл
     with open(f'{user_states[message.chat.id]['product_data'][1]}.jpg', 'wb') as file:
@@ -324,6 +325,12 @@ def get_all(message):
         bot.register_next_step_handler(message, get_all)
 
 
+@bot.message_handler(commands=['card'])
+@bot.message_handler(func=lambda message: message.text.lower() == 'продолжаем')
+def discountCard(message):
+    1+1
+
+
 @bot.message_handler(content_types=['photo', 'video', 'audio', 'sticker', 'emoji'])
 def noneContent(message):
     bot.reply_to(message, f'Извините, {message.from_user.first_name}, я не умею обрабатывать такие сообщения((')
@@ -345,6 +352,8 @@ def callback_message(callback):
                          parse_mode='html', reply_markup=markup1)
     elif callback.data == 'true_enter':
         if (not user_states[callback.message.chat.id]['user_data']):
+            #Доделать
+            user_states[callback.message.chat.id]['card'] = checkCard.check_card_status('cards.xlsx', user_states[callback.message.chat.id]['name'])
             conn = sqlite3.connect('shop.sql')
             cur = conn.cursor()
             cur.execute(
@@ -352,6 +361,10 @@ def callback_message(callback):
             conn.commit()
             cur.close()
             conn.close()
+
+        else:
+            test = checkCard.check_card_status('cards.xlsx', user_states[callback.message.chat.id]['name'])
+            print(test)
 
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         bottom1 = types.KeyboardButton("Консультация")
