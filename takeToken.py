@@ -23,7 +23,6 @@ def generate_unique_token():
 
 
 def delete_art(token):
-    print(token)
     conn = sqlite3.connect('shop.sql')
     cur = conn.cursor()
     cur.execute("DELETE FROM tokens WHERE token = ?", (token,))

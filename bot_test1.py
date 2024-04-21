@@ -1,7 +1,6 @@
 import getInfAboutProduct
 import telebot
 import config
-import takeToken
 import sqlite3
 import checkUser
 import editUser
@@ -10,7 +9,6 @@ import checkCard
 from telebot import types
 
 import re
-from io import BytesIO
 import os
 
 user_states = {}
@@ -37,7 +35,8 @@ def welcome(message):
     cur = conn.cursor()
 
     cur.execute(
-        'CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, name varchar(255), tgId varchar(20) unique not null, phone varchar(20))')
+        'CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, name varchar(255), tgId varchar(20) '
+        'unique not null, phone varchar(20), has_card integer default(0))')
 
     conn.commit()
     cur.close()
@@ -220,7 +219,8 @@ def consult(message):
                            f'Информация о пользователе:\n'
                            f'Ник пользователя - {message.from_user.username}\n'
                            f'ФИО - {user_states[message.chat.id]['name']}\n'
-                           f'Номер телефона - {user_states[message.chat.id]['phone']}')
+                           f'Номер телефона - {user_states[message.chat.id]['phone']}\n'
+                           f'Наличие карты - {"Есть карта" if user_states[message.chat.id]['card'] == 1 else "Нет карты"}')
     os.remove(f'{user_states[message.chat.id]['product_data'][1]}.jpg')
 
     bot.send_message(message.chat.id,
@@ -327,8 +327,8 @@ def get_all(message):
 
 @bot.message_handler(commands=['card'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'продолжаем')
-def discountCard(message):
-    1+1
+def order_formation(message):
+    bot.send_message(message.chat.id, f'Формирование заказа ???', reply_markup=types.ReplyKeyboardRemove())
 
 
 @bot.message_handler(content_types=['photo', 'video', 'audio', 'sticker', 'emoji'])
@@ -351,31 +351,35 @@ def callback_message(callback):
                          "Чтобы сделать заказ, отправьте команду <b>/order</b> или нажмите на кнопку <b>Заказ</b>",
                          parse_mode='html', reply_markup=markup1)
     elif callback.data == 'true_enter':
-        if (not user_states[callback.message.chat.id]['user_data']):
-            #Доделать
-            user_states[callback.message.chat.id]['card'] = checkCard.check_card_status('cards.xlsx', user_states[callback.message.chat.id]['name'])
+        user_states[callback.message.chat.id]['card'] = checkCard.check_card_status('cards.xlsx', user_states[
+            callback.message.chat.id]['name'])
+        if not user_states[callback.message.chat.id]['user_data']:
+            # Доделать
             conn = sqlite3.connect('shop.sql')
             cur = conn.cursor()
             cur.execute(
-                f"INSERT INTO users(name, tgId, phone) VALUES ('{user_states[callback.message.chat.id]['name']}', '{user_states[callback.message.chat.id]['tgId']}', '{user_states[callback.message.chat.id]['phone']}')")
+                f"INSERT INTO users(name, tgId, phone, has_card) VALUES ('{user_states[callback.message.chat.id]['name']}', '{user_states[callback.message.chat.id]['tgId']}', '{user_states[callback.message.chat.id]['phone']}', '{user_states[callback.message.chat.id]['card']}')")
             conn.commit()
             cur.close()
             conn.close()
 
         else:
-            test = checkCard.check_card_status('cards.xlsx', user_states[callback.message.chat.id]['name'])
-            print(test)
+            if (not user_states[callback.message.chat.id]['user_data'][4]) and user_states[callback.message.chat.id][
+                'card']:
+                editUser.update_user_card(user_states[callback.message.chat.id]['card'],
+                                          user_states[callback.message.chat.id]['tgId'])
 
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        bottom1 = types.KeyboardButton("Консультация")
-        bottom2 = types.KeyboardButton("Продолжаем")
-        markup.row(bottom1, bottom2)
+        if not user_states[callback.message.chat.id]['card']:
+            markup = types.InlineKeyboardMarkup()
+            bottom1 = types.InlineKeyboardButton('Хочу', callback_data='create_card')
+            bottom2 = types.InlineKeyboardButton('Не хочу', callback_data='continue_without_card')
+            markup.row(bottom1, bottom2)
 
-        bot.send_message(callback.message.chat.id, "Ваши данные успешно зарегестрированы)")
-        bot.send_message(callback.message.chat.id,
-                         "Нужна ли вам дополнительная консультация с нашим менеджером по поводу заказа?\n\n"
-                         "Выберите <b>Консультация</b>, если нужна\n"
-                         "Выберите <b>Продолжаем</b>, если не нужна", parse_mode='html', reply_markup=markup)
+            bot.send_message(callback.message.chat.id, f'Мы заметили, что у вас нет нашей дисконтной карты😞 '
+                                                       f'Предлагаем вам создать ее, чтобы в дальнейшем приобретать наш товар по более выгодной цене)',
+                             reply_markup=markup)
+        else:
+            consultation(callback)
         # bot.delete_message(callback.message.chat.id,callback.message.message_id)
     elif callback.data == 'false_enter':
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -393,9 +397,31 @@ def callback_message(callback):
         markup.add(bottom3)
         bot.send_message(callback.message.chat.id, f'Выберите, пожалуйста, какие данные поменялись🙃',
                          reply_markup=markup)
-
+    elif callback.data == 'create_card':
+        bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
+                                            f'Информация о пользователе:\n'
+                                            f'Ник пользователя - {callback.message.chat.username}\n'
+                                            f'ФИО - {user_states[callback.message.chat.id]['name']}\n'
+                                            f'Номер телефона - {user_states[callback.message.chat.id]['phone']}')
+        checkCard.create_card('cards.xlsx', user_states[callback.message.chat.id]['name'])
+        consultation(callback)
+    elif callback.data == 'continue_without_card':
+        consultation(callback)
     bot.edit_message_text(chat_id=callback.message.chat.id, message_id=callback.message.message_id, text='Continue....',
                           reply_markup=None)
+
+
+def consultation(callback):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    bottom1 = types.KeyboardButton("Консультация")
+    bottom2 = types.KeyboardButton("Продолжаем")
+    markup.row(bottom1, bottom2)
+
+    bot.send_message(callback.message.chat.id, "Ваши данные успешно зарегестрированы)")
+    bot.send_message(callback.message.chat.id,
+                     "Нужна ли вам дополнительная консультация с нашим менеджером по поводу заказа?\n\n"
+                     "Выберите <b>Консультация</b>, если нужна\n"
+                     "Выберите <b>Продолжаем</b>, если не нужна", parse_mode='html', reply_markup=markup)
 
 
 @bot.message_handler()
@@ -415,7 +441,7 @@ def info(message):
         products = cur.fetchall()
         info = ''
         for elm in products:
-            info += f'name: {elm[1]}, phone: {elm[3]}, id: {elm[2]}'
+            info += f'name: {elm[1]}, phone: {elm[3]}, id: {elm[2]}, card: {elm[4]}'
             # Отправка сообщения с данными о товаре и фотографией
         bot.send_message(message.chat.id, info)
         cur.close()
