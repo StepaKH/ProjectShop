@@ -16,7 +16,6 @@ user_states = {}
 bot = telebot.TeleBot(config.TOKEN)
 bot.set_webhook()
 
-
 def mainKeyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     bottom1 = types.KeyboardButton("Главная")
@@ -26,10 +25,10 @@ def mainKeyboard():
     markup.add(bottom3)
     return markup
 
-
 @bot.message_handler(commands=['start', 'main', 'hello'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'главная')
 def welcome(message):
+    #print(check_card_status(79965677951))
     # DB
     conn = sqlite3.connect('shop.sql')
     cur = conn.cursor()
@@ -164,8 +163,7 @@ def user_name(message):
         # Ввод пользователя соответствует формату Фамилия Имя Отчество
         # config.name = full_name
         bot.send_message(message.chat.id, "Введите свой номер телефона в форматах:\n"
-                                          "89*********\n"
-                                          "+79*********")
+                                          "79*********")
         bot.register_next_step_handler(message, user_phone)
     else:
         # Ввод пользователя не соответствует формату ФИО
@@ -175,7 +173,7 @@ def user_name(message):
 
 def user_phone(message):
     user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^(\+7|8)9\d{9}$', user_states[message.chat.id]['phone']):
+    if re.match(r'^79\d{9}$', user_states[message.chat.id]['phone']):
         # Введенный номер телефона соответствует формату
         # config.phone = message.text.strip()
         # config.tg_id = message.from_user.id
@@ -266,7 +264,7 @@ def phone(message):
 def get_phone(message):
     # phone_nember = message.text.strip()
     user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$',
+    if re.match(r'^79\d{9}$',
                 user_states[message.chat.id]['phone']):
         # config.phone = phone_number
         editUser.update_user_phone(user_states[message.chat.id]['phone'], message.from_user.id)
@@ -305,9 +303,9 @@ def get_name_from_all(message):
 
 
 def get_all(message):
-    # phone_nember = message.text.strip()
+    # phone_number = message.text.strip()
     user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$',
+    if re.match(r'^79\d{9}$',
                 user_states[message.chat.id]['phone']):
         # config.phone = phone_number
         editUser.update_user_all(user_states[message.chat.id]['phone'], user_states[message.chat.id]['name'],
@@ -351,8 +349,7 @@ def callback_message(callback):
                          "Чтобы сделать заказ, отправьте команду <b>/order</b> или нажмите на кнопку <b>Заказ</b>",
                          parse_mode='html', reply_markup=markup1)
     elif callback.data == 'true_enter':
-        user_states[callback.message.chat.id]['card'] = checkCard.check_card_status('cards.xlsx', user_states[
-            callback.message.chat.id]['name'])
+        user_states[callback.message.chat.id]['card'] = checkCard.check_card_status('cards.xlsx', user_states[callback.message.chat.id]['phone'])
         if not user_states[callback.message.chat.id]['user_data']:
             # Доделать
             conn = sqlite3.connect('shop.sql')
@@ -398,18 +395,30 @@ def callback_message(callback):
         bot.send_message(callback.message.chat.id, f'Выберите, пожалуйста, какие данные поменялись🙃',
                          reply_markup=markup)
     elif callback.data == 'create_card':
-        bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
-                                            f'Информация о пользователе:\n'
-                                            f'Ник пользователя - {callback.message.chat.username}\n'
-                                            f'ФИО - {user_states[callback.message.chat.id]['name']}\n'
-                                            f'Номер телефона - {user_states[callback.message.chat.id]['phone']}')
-        checkCard.create_card('cards.xlsx', user_states[callback.message.chat.id]['name'])
-        consultation(callback)
+        bot.send_message(callback.message.chat.id, "Введите, пожалуйста, свою дату рождения в формате: ДД.ММ.ГГГГ")
+        bot.register_next_step_handler(callback.message, lambda message: process_birthday_input(callback, message))
+        #checkCard.create_card('cards.xlsx', user_states[callback.message.chat.id]['name'])
+        #consultation(callback)
     elif callback.data == 'continue_without_card':
         consultation(callback)
     bot.edit_message_text(chat_id=callback.message.chat.id, message_id=callback.message.message_id, text='Continue....',
                           reply_markup=None)
 
+
+def process_birthday_input(callback, message):
+    user_states[callback.message.chat.id]['birthday'] = message.text.strip()
+    if re.match(r'^\d{2}\.\d{2}\.\d{4}$', user_states[callback.message.chat.id]['birthday']):
+        bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
+                                            f'Информация о пользователе:\n'
+                                            f'Ник пользователя - {callback.message.chat.username}\n'
+                                            f'ФИО - {user_states[callback.message.chat.id]['name']}\n'
+                                            f'Номер телефона - {user_states[callback.message.chat.id]['phone']}\n'
+                                            f'Дата рождения - {user_states[callback.message.chat.id]['birthday']}')
+        checkCard.create_card('cards.xlsx',user_states[callback.message.chat.id]['name'], user_states[callback.message.chat.id]['phone'], user_states[callback.message.chat.id]['birthday'])
+        consultation(callback)
+    else:
+        bot.send_message(callback.message.chat.id, f'Неверный формат даты рождения. Введите дату в формате: ДД.ММ.ГГГГ')
+        bot.register_next_step_handler(callback.message, lambda message: process_birthday_input(callback, message))
 
 def consultation(callback):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)

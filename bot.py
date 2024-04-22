@@ -228,7 +228,7 @@ def phone(message):
 def get_phone(message):
     # phone_nember = message.text.strip()
     user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$', user_states[message.chat.id]['phone']):
+    if re.match(r'^79\d{9}$', user_states[message.chat.id]['phone']):
         #config.phone = phone_number
         editUser.update_user_phone(user_states[message.chat.id]['phone'], message.from_user.id)
         markup = types.InlineKeyboardMarkup()
@@ -259,9 +259,9 @@ def get_name_from_all(message):
         bot.send_message(message.chat.id, "Пожалуйста, введите Фамилию Имя Отчество в правильном формате.")
         bot.register_next_step_handler(message, get_name_from_all)
 def get_all(message):
-    # phone_nember = message.text.strip()
+    # phone_number = message.text.strip()
     user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^\+?\d{1,3}\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$',user_states[message.chat.id]['phone']):
+    if re.match(r'^79\d{9}$', user_states[message.chat.id]['phone']):
         # config.phone = phone_number
         editUser.update_user_all(user_states[message.chat.id]['phone'], user_states[message.chat.id]['name'], message.from_user.id)
         markup = types.InlineKeyboardMarkup()
