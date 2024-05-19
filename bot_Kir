@@ -62,7 +62,7 @@ def welcome(message):
                      parse_mode='html', reply_markup=markup)
 
 @bot.message_handler(commands=['order'])
-@bot.message_handler(func=lambda message: message.text.lower() == 'заказ')
+@bot.message_handler(func=lambda message: message.text.lower() in {'заказ', 'заказать еще'})
 def order(message):
     user_states[message.chat.id] = {'token': None}
     bot.send_message(message.chat.id, "Введите, пожалуйста, <b>артикул</b> товара\n"
@@ -240,6 +240,11 @@ def consult(message):
                      reply_markup=types.ReplyKeyboardRemove())
 
 
+@bot.message_handler(commands=['end'])
+@bot.message_handler(func=lambda message: message.text.lower() == 'закончить')
+def end(message):
+    bot.send_message(message.chat.id, f'Былм рады видеть вас в нашем магазине, приходите еще😊', reply_markup=types.ReplyKeyboardRemove())
+
 @bot.message_handler(content_types=['photo', 'video', 'audio', 'sticker', 'emoji'])
 def noneContent(message):
     bot.reply_to(message, f'Извините, {message.from_user.first_name}, я не умею обрабатывать такие сообщения((')
@@ -402,10 +407,15 @@ def end_of_work(message):
                                    f'Номер телефона - {user_states[message.chat.id]['phone']}\n'
                                    f'Наличие карты - {"Есть карта" if user_states[message.chat.id]['card'] == 1 else "Нет карты"}')
 
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            bottom1 = types.KeyboardButton("Заказать еще")
+            bottom2 = types.KeyboardButton("Закончить")
+            markup.row(bottom1, bottom2)
+
             bot.send_message(message.chat.id,
                              f'Ваш заказ зарегистрирован и отправлен менеджеру, в течение 12 рабочих часов менеджер свяжется с вами для приема оплаты',
                              parse_mode='html',
-                             reply_markup=types.ReplyKeyboardRemove())
+                             reply_markup=markup)
         else:
             bot.send_message(message.chat.id,
                              "Пожалуйста, введите корректный размер ткани (он состоит ТОЛЬКО из цифр).")
