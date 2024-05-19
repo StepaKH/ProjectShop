@@ -363,7 +363,7 @@ def callback_message(callback):
 def process_birthday_input(callback, message):
     if message.content_type == 'text':
         user_states[callback.message.chat.id]['birthday'] = message.text.strip()
-        if re.match(r'^\d{2}\.\d{2}\.\d{4}$', user_states[callback.message.chat.id]['birthday']):
+        if re.match(r'^(0[1-9]|1[0-9]|2[0-9]|3[0-1])\.(0[1-9]|1[0-2])\.(19[3-9][0-9]|20[01][0-9])$', user_states[callback.message.chat.id]['birthday']):
             bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
                                                 f'Информация о пользователе:\n'
                                                 f'Ник пользователя - {callback.message.chat.username}\n'
