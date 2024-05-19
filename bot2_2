@@ -4,6 +4,7 @@ import sqlite3
 import takeToken
 import getInfAboutProduct
 
+import re
 import os
 
 from telebot import types
@@ -14,7 +15,7 @@ price_product = None
 width_product = None
 
 bot = telebot.TeleBot(config.TOKEN2)
-
+bot.set_webhook()
 
 @bot.message_handler(commands=['start', 'main', 'hello'])
 def start(message):
@@ -96,7 +97,9 @@ def get_price(message):
     if message.content_type == 'text':
         global price_product
         price_product = message.text.strip()
-        bot.send_message(message.chat.id, "Введите ширину товара")
+        bot.send_message(message.chat.id, "Введите цену товара в одном из следующих форматах:\n"
+                                          "Число м: Пример - 10 м\n"
+                                          "Число см: Пример - 10 см")
         bot.register_next_step_handler(message, get_width)
     else:
         bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
@@ -108,8 +111,12 @@ def get_width(message):
     if message.content_type == 'text':
         global width_product
         width_product = message.text.strip()
-        bot.send_message(message.chat.id, "Введите фотографию товара")
-        bot.register_next_step_handler(message, get_photo)
+        if re.match(r'^\d+\s+[a-zA-Zа-яА-ЯёЁ]+$', width_product):
+            bot.send_message(message.chat.id, "Введите фотографию товара")
+            bot.register_next_step_handler(message, get_photo)
+        else:
+            bot.send_message(message.chat.id, "Пожалуйста, введите ширину товара в правильном формате.")
+            bot.register_next_step_handler(message, get_width)
     else:
         bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
                                           "Пожалуйста, введите ширину товара в правильном формате.")
@@ -215,5 +222,6 @@ def fan(message):
         conn.close()
     else:
         bot.send_message(message.chat.id, f'В настоящее время каталог пуст!')
+
 
 bot.polling(none_stop=True)
