@@ -74,58 +74,61 @@ def order(message):
 
 
 def get_token(message):
-    user_states[message.chat.id]['token'] = message.text.strip()
-    user_states[message.chat.id]['product_data'] = getInfAboutProduct.get_product_data(
-        user_states[message.chat.id]['token'])
-    # Проверка на существование
-    if (not user_states[message.chat.id]['product_data']):
-        bot.send_message(message.chat.id, f'К сожалению такого артикула не существует😢\n'
-                                          f'Попробуйте снова!')
-        order(message)
+    if message.content_type == 'text':
+        user_states[message.chat.id]['token'] = message.text.strip()
+        user_states[message.chat.id]['product_data'] = getInfAboutProduct.get_product_data(
+            user_states[message.chat.id]['token'])
+        # Проверка на существование
+        if (not user_states[message.chat.id]['product_data']):
+            bot.send_message(message.chat.id, f'К сожалению такого артикула не существует😢\n'
+                                              f'Попробуйте снова!')
+            order(message)
+        else:
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            bottom1 = types.KeyboardButton("Верно")
+            bottom2 = types.KeyboardButton("Неверно")
+            bottom3 = types.KeyboardButton("Консультация")
+            markup.row(bottom1, bottom2)
+            markup.add(bottom3)
+
+            bot.send_message(message.chat.id, "Проверьте, пожалуйста, что вы правильно ввели артикул\n"
+                                              "Данные по данному артикулу:")
+
+            # Отправка сообщения с данными о товаре и фотографией
+            file_path = os.path.join('photos', f'{user_states[message.chat.id]['product_data'][1]}.jpg')  # Путь к файлу в новой папке
+            img = open(f"{file_path}", 'rb')
+
+            bot.send_photo(message.chat.id, img,
+                           caption=f'Name: {user_states[message.chat.id]['product_data'][1]}\n Price: {user_states[message.chat.id]['product_data'][2]}\n Width: {user_states[message.chat.id]['product_data'][3]}\n Token: {user_states[message.chat.id]['product_data'][4]}',
+                           reply_markup=markup)
+            # Проверка на правильный выбор
+            bot.register_next_step_handler(message, check_product)
     else:
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        bottom1 = types.KeyboardButton("Верно")
-        bottom2 = types.KeyboardButton("Неверно")
-        bottom3 = types.KeyboardButton("Консультация")
-        markup.row(bottom1, bottom2)
-        markup.add(bottom3)
-
-        bot.send_message(message.chat.id, "Проверьте, пожалуйста, что вы правильно ввели артикул\n"
-                                          "Данные по данному артикулу:")
-
-        # name = config.product_data[1]
-        # price = config.product_data[3]
-        # width = config.product_data[4]
-        # token = config.product_data[5]
-        # photo = config.product_data[2]  # Бинарные данные фотографии из базы данных
-        # Отправка сообщения с данными о товаре и фотографией
-        file_path = os.path.join('photos', f'{user_states[message.chat.id]['product_data'][1]}.jpg')  # Путь к файлу в новой папке
-        img = open(f"{file_path}", 'rb')
-
-        bot.send_photo(message.chat.id, img,
-                       caption=f'Name: {user_states[message.chat.id]['product_data'][1]}\n Price: {user_states[message.chat.id]['product_data'][2]}\n Width: {user_states[message.chat.id]['product_data'][3]}\n Token: {user_states[message.chat.id]['product_data'][4]}',
-                       reply_markup=markup)
-        # Проверка на правильный выбор
-        bot.register_next_step_handler(message, check_product)
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                         "Введите, пожалуйста, текстом")
+        order(message)
 
 
 def check_product(message):
-    if (message.text.strip() == 'Неверно'):
-        order(message)
-    elif (message.text.strip() == 'Верно'):
-        get_info_user(message)
-    elif (message.text.strip() == 'Консультация'):
-        consult2(message)
+    if message.content_type == 'text':
+        if (message.text.strip() == 'Неверно'):
+            order(message)
+        elif (message.text.strip() == 'Верно'):
+            get_info_user(message)
+        elif (message.text.strip() == 'Консультация'):
+            consult2(message)
+        else:
+            bot.send_message(message.chat.id, "Выберите одну из кнопок: Верно или Невернно, либо выберите кнопку Консультация, для консультации с менеджером" )
+            bot.register_next_step_handler(message, check_product)
     else:
-        bot.send_message(message.chat.id, "Выберите одну из кнопок: Верно или Невернно, либо выберите кнопку Консультация, для консультации с менеджером" )
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Введите, пожалуйста, текстом")
         bot.register_next_step_handler(message, check_product)
 
 
 def get_info_user(message):
     # Register users
-    # user_states[message.chat.id]['user_data':None]
     user_states[message.chat.id]['user_data'] = checkUser.get_user_data(message.from_user.id)
-    # config.user_data = checkUser.get_user_data(message.from_user.id)
     if (user_states[message.chat.id]['user_data']):
         markup = types.InlineKeyboardMarkup()
         bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
@@ -135,9 +138,6 @@ def get_info_user(message):
         user_states[message.chat.id]['name'] = user_states[message.chat.id]['user_data'][1]
         user_states[message.chat.id]['phone'] = user_states[message.chat.id]['user_data'][3]
         user_states[message.chat.id]['tgId'] = message.from_user.id
-        # config.name = config.user_data[1]
-        # config.phone = config.user_data[3]
-        # config.tg_id = config.user_data[2]
 
         bot.send_message(message.chat.id, f'Вы уже были в нашем магазине, и у нас есть ваши данные😁',
                          reply_markup=types.ReplyKeyboardRemove())
@@ -154,49 +154,49 @@ def get_info_user(message):
 
 
 def user_name(message):
-    user_states[message.chat.id]['name'] = message.text.strip()
+    if message.content_type == 'text':
+        user_states[message.chat.id]['name'] = message.text.strip()
 
-    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
-        # Ввод пользователя соответствует формату Фамилия Имя Отчество
-        # config.name = full_name
-        bot.send_message(message.chat.id, "Введите свой номер телефона в форматах:\n"
-                                          "79*********")
-        bot.register_next_step_handler(message, user_phone)
+        if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
+            # Ввод пользователя соответствует формату Фамилия Имя Отчество
+            bot.send_message(message.chat.id, "Введите свой номер телефона в форматах:\n"
+                                              "79*********")
+            bot.register_next_step_handler(message, user_phone)
+        else:
+            # Ввод пользователя не соответствует формату ФИО
+            bot.send_message(message.chat.id, "Пожалуйста, введите свое ФИО в правильном формате.")
+            bot.register_next_step_handler(message, user_name)
     else:
-        # Ввод пользователя не соответствует формату ФИО
-        bot.send_message(message.chat.id, "Пожалуйста, введите свое ФИО в правильном формате.")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите свое ФИО в правильном формате.")
         bot.register_next_step_handler(message, user_name)
 
 
 def user_phone(message):
-    user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^79\d{9}$', user_states[message.chat.id]['phone']):
-        # Введенный номер телефона соответствует формату
-        # config.phone = message.text.strip()
-        # config.tg_id = message.from_user.id
+    if message.content_type == 'text':
+        user_states[message.chat.id]['phone'] = message.text.strip()
+        if re.match(r'^79\d{9}$', user_states[message.chat.id]['phone']):
 
-        user_states[message.chat.id]['tgId'] = message.from_user.id
-        markup = types.InlineKeyboardMarkup()
-        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='false_enter')
-        markup.row(bottom1, bottom2)
+            user_states[message.chat.id]['tgId'] = message.from_user.id
+            markup = types.InlineKeyboardMarkup()
+            bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+            bottom2 = types.InlineKeyboardButton('Неверно', callback_data='false_enter')
+            markup.row(bottom1, bottom2)
 
-        bot.send_message(message.chat.id, f'Мы закончили небольшую регистрацию🔥')
-        bot.send_message(message.chat.id,
-                         f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
-                         reply_markup=markup)
+            bot.send_message(message.chat.id, f'Мы закончили небольшую регистрацию🔥')
+            bot.send_message(message.chat.id,
+                             f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
+                             reply_markup=markup)
+        else:
+            # Неверный формат номера телефона
+            bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен содержать 11 цифр и начинаться на 79).")
+            bot.register_next_step_handler(message, user_phone)
     else:
-        # Неверный формат номера телефона
-        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен содержать 11 цифр и начинаться на 79).")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите корректный номер телефона (номер должен содержать 11 цифр и начинаться на 79).")
         bot.register_next_step_handler(message, user_phone)
 
 def consult2(message):
-    # name = config.product_data[1]
-    # price = config.product_data[3]
-    # width = config.product_data[4]
-    # token = config.product_data[5]
-    # photo = config.product_data[2]  #Бинарные данные фотографии из базы данных
-
     file_path = os.path.join('photos',
                              f'{user_states[message.chat.id]['product_data'][1]}.jpg')  # Путь к файлу в новой папке
     img = open(f"{file_path}", 'rb')
@@ -257,10 +257,6 @@ def callback_message(callback):
                          "Если ваш заказ отправлен службой доставки *Почта России*, нажмите на кнопку <b>Почта России</b>, если ваш зака отправлен службой доставки *СДЭК*, нажмите на кнопку <b>СДЭК</b>",
                          parse_mode='html', reply_markup=markup10)
 
-        ##bot.send_message(callback.message.chat.id,
-                       ##  'Перенаправляю Вас на моего коллегу, регистрация в один клик, далее введите <b>/add (номер вашего заказа)</b>, а затем <b>/tracks</b>. Также напоминаю, что по правилам нашего магазина (далее правила по срокам доставки)\n\n' + "Ссылка -> https://t.me/RLabbot",
-                     ##    parse_mode='html')
-    # bot.delete_message(callback.message.chat.id, callback.message.message_id)
     elif callback.data == 'order':
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item1 = types.KeyboardButton("Заказ")
@@ -297,7 +293,6 @@ def callback_message(callback):
                              reply_markup=markup)
         else:
             consultation(callback)
-        # bot.delete_message(callback.message.chat.id,callback.message.message_id)
     elif callback.data == 'false_enter':
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item1 = types.KeyboardButton("Заказ")
@@ -317,8 +312,6 @@ def callback_message(callback):
     elif callback.data == 'create_card':
         bot.send_message(callback.message.chat.id, "Введите, пожалуйста, свою дату рождения в формате: ДД.ММ.ГГГГ")
         bot.register_next_step_handler(callback.message, lambda message: process_birthday_input(callback, message))
-        #checkCard.create_card('cards.xlsx', user_states[callback.message.chat.id]['name'])
-        #consultation(callback)
     elif callback.data == 'continue_without_card':
         consultation(callback)
     elif callback.data == 'end_of_buy':
@@ -368,120 +361,141 @@ def callback_message(callback):
 
 
 def process_birthday_input(callback, message):
-    user_states[callback.message.chat.id]['birthday'] = message.text.strip()
-    if re.match(r'^\d{2}\.\d{2}\.\d{4}$', user_states[callback.message.chat.id]['birthday']):
-        bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
-                                            f'Информация о пользователе:\n'
-                                            f'Ник пользователя - {callback.message.chat.username}\n'
-                                            f'ФИО - {user_states[callback.message.chat.id]['name']}\n'
-                                            f'Номер телефона - {user_states[callback.message.chat.id]['phone']}\n'
-                                            f'Дата рождения - {user_states[callback.message.chat.id]['birthday']}')
-        checkCard.create_card('cards.xlsx',user_states[callback.message.chat.id]['name'], user_states[callback.message.chat.id]['phone'], user_states[callback.message.chat.id]['birthday'])
-        consultation(callback)
+    if message.content_type == 'text':
+        user_states[callback.message.chat.id]['birthday'] = message.text.strip()
+        if re.match(r'^\d{2}\.\d{2}\.\d{4}$', user_states[callback.message.chat.id]['birthday']):
+            bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
+                                                f'Информация о пользователе:\n'
+                                                f'Ник пользователя - {callback.message.chat.username}\n'
+                                                f'ФИО - {user_states[callback.message.chat.id]['name']}\n'
+                                                f'Номер телефона - {user_states[callback.message.chat.id]['phone']}\n'
+                                                f'Дата рождения - {user_states[callback.message.chat.id]['birthday']}')
+            checkCard.create_card('cards.xlsx',user_states[callback.message.chat.id]['name'], user_states[callback.message.chat.id]['phone'], user_states[callback.message.chat.id]['birthday'])
+            consultation(callback)
+        else:
+            bot.send_message(callback.message.chat.id, f'Неверный формат даты рождения. Введите дату в формате: ДД.ММ.ГГГГ')
+            bot.register_next_step_handler(callback.message, lambda message: process_birthday_input(callback, message))
     else:
-        bot.send_message(callback.message.chat.id, f'Неверный формат даты рождения. Введите дату в формате: ДД.ММ.ГГГГ')
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите дату в формате: ДД.ММ.ГГГГ")
         bot.register_next_step_handler(callback.message, lambda message: process_birthday_input(callback, message))
 
 
 def end_of_work(message):
-    user_states[message.chat.id]['size'] = message.text.strip()
-    if re.match(r'^[0-9]+$', user_states[message.chat.id]['size']):
-        file_path = os.path.join('photos',
-                                 f'{user_states[message.chat.id]['product_data'][1]}.jpg')  # Путь к файлу в новой папке
-        img = open(f"{file_path}", 'rb')
-        # Отправка сообщения с данными о товаре и фотографией
-        bot.send_photo(config.manager_id, img,
-                       caption=f'Принять заказ!\n'
-                               f'Информация о заказе с артикулом - {user_states[message.chat.id]['product_data'][4]}:\n'
-                               f'Название: {user_states[message.chat.id]['product_data'][1]}\n'
-                               f'Цена: {user_states[message.chat.id]['product_data'][2]}\n'
-                               f'Ширина: {user_states[message.chat.id]['size']}\n\n'
-                       ## f'Ширина: {size}\n\n'
+    if message.content_type == 'text':
+        user_states[message.chat.id]['size'] = message.text.strip()
+        if re.match(r'^[0-9]+$', user_states[message.chat.id]['size']):
+            file_path = os.path.join('photos',
+                                     f'{user_states[message.chat.id]['product_data'][1]}.jpg')  # Путь к файлу в новой папке
+            img = open(f"{file_path}", 'rb')
+            # Отправка сообщения с данными о товаре и фотографией
+            bot.send_photo(config.manager_id, img,
+                           caption=f'Принять заказ!\n'
+                                   f'Информация о заказе с артикулом - {user_states[message.chat.id]['product_data'][4]}:\n'
+                                   f'Название: {user_states[message.chat.id]['product_data'][1]}\n'
+                                   f'Цена: {user_states[message.chat.id]['product_data'][2]}\n'
+                                   f'Ширина: {user_states[message.chat.id]['size']}\n\n'
+    
+                                   f'Информация о пользователе:\n'
+                                   f'Ник пользователя - {message.from_user.username}\n'
+                                   f'ФИО - {user_states[message.chat.id]['name']}\n'
+                                   f'Номер телефона - {user_states[message.chat.id]['phone']}\n'
+                                   f'Наличие карты - {"Есть карта" if user_states[message.chat.id]['card'] == 1 else "Нет карты"}')
 
-                               f'Информация о пользователе:\n'
-                               f'Ник пользователя - {message.from_user.username}\n'
-                               f'ФИО - {user_states[message.chat.id]['name']}\n'
-                               f'Номер телефона - {user_states[message.chat.id]['phone']}\n'
-                               f'Наличие карты - {"Есть карта" if user_states[message.chat.id]['card'] == 1 else "Нет карты"}')
-
-        bot.send_message(message.chat.id,
-                         f'Ваш заказ зарегистрирован и отправлен менеджеру, в течение 12 рабочих часов менеджер свяжется с вами для приема оплаты',
-                         parse_mode='html',
-                         reply_markup=types.ReplyKeyboardRemove())
+            bot.send_message(message.chat.id,
+                             f'Ваш заказ зарегистрирован и отправлен менеджеру, в течение 12 рабочих часов менеджер свяжется с вами для приема оплаты',
+                             parse_mode='html',
+                             reply_markup=types.ReplyKeyboardRemove())
+        else:
+            bot.send_message(message.chat.id,
+                             "Пожалуйста, введите корректный размер ткани (он состоит ТОЛЬКО из цифр).")
+            bot.register_next_step_handler(message, end_of_work)
     else:
-        bot.send_message(message.chat.id,
-                         "Пожалуйста, введите корректный размер ткани (он состоит ТОЛЬКО из цифр).")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите корректный размер ткани (он состоит ТОЛЬКО из цифр).")
         bot.register_next_step_handler(message, end_of_work)
 
 def get_name(message):
-    # full_name = message.text.strip()
-    user_states[message.chat.id]['name'] = message.text.strip()
-    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
-        # config.name = full_name
-        editUser.update_user_name(user_states[message.chat.id]['name'], message.from_user.id)
-        markup = types.InlineKeyboardMarkup()
-        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-        markup.row(bottom1, bottom2)
-        bot.send_message(message.chat.id,
-                         f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
-                         reply_markup=markup)
+    if message.content_type == 'text':
+        user_states[message.chat.id]['name'] = message.text.strip()
+        if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
+            editUser.update_user_name(user_states[message.chat.id]['name'], message.from_user.id)
+            markup = types.InlineKeyboardMarkup()
+            bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+            bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+            markup.row(bottom1, bottom2)
+            bot.send_message(message.chat.id,
+                             f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
+                             reply_markup=markup)
+        else:
+            # Ввод пользователя не соответствует формату ФИО
+            bot.send_message(message.chat.id, "Пожалуйста, введите ФИО в правильном формате.")
+            bot.register_next_step_handler(message, get_name)
     else:
-        # Ввод пользователя не соответствует формату ФИО
-        bot.send_message(message.chat.id, "Пожалуйста, введите ФИО в правильном формате.")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите ФИО в правильном формате.")
         bot.register_next_step_handler(message, get_name)
 
 
 def get_phone(message):
-    # phone_nember = message.text.strip()
-    user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^79\d{9}$',
-                user_states[message.chat.id]['phone']):
-        # config.phone = phone_number
-        editUser.update_user_phone(user_states[message.chat.id]['phone'], message.from_user.id)
-        markup = types.InlineKeyboardMarkup()
-        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-        markup.row(bottom1, bottom2)
-        bot.send_message(message.chat.id,
-                         f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
-                         reply_markup=markup)
+    if message.content_type == 'text':
+        user_states[message.chat.id]['phone'] = message.text.strip()
+        if re.match(r'^79\d{9}$',
+                    user_states[message.chat.id]['phone']):
+            editUser.update_user_phone(user_states[message.chat.id]['phone'], message.from_user.id)
+            markup = types.InlineKeyboardMarkup()
+            bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+            bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+            markup.row(bottom1, bottom2)
+            bot.send_message(message.chat.id,
+                             f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
+                             reply_markup=markup)
+        else:
+            # Неверный формат номера телефона
+            bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться с 79).")
+            bot.register_next_step_handler(message, get_phone)
     else:
-        # Неверный формат номера телефона
-        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться с 79).")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться с 79).")
         bot.register_next_step_handler(message, get_phone)
 
 def get_name_from_all(message):
-    # full_name = message.text.strip()
-    user_states[message.chat.id]['name'] = message.text.strip()
-    if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
-        # config.name = full_name
-        bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер в формате 79*********")
-        bot.register_next_step_handler(message, get_all)
+    if message.content_type == 'text':
+        user_states[message.chat.id]['name'] = message.text.strip()
+        if re.match(r'^[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+\s+[А-ЯЁа-яё]+$', user_states[message.chat.id]['name']):
+            bot.send_message(message.chat.id, "Введите, пожалуйста, новый номер в формате 79*********")
+            bot.register_next_step_handler(message, get_all)
+        else:
+            # Ввод пользователя не соответствует формату ФИО
+            bot.send_message(message.chat.id, "Пожалуйста, введите ФИО в правильном формате.")
+            bot.register_next_step_handler(message, get_name_from_all)
     else:
-        # Ввод пользователя не соответствует формату ФИО
-        bot.send_message(message.chat.id, "Пожалуйста, введите ФИО в правильном формате.")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите ФИО в правильном формате.")
         bot.register_next_step_handler(message, get_name_from_all)
 
 
 def get_all(message):
-    # phone_number = message.text.strip()
-    user_states[message.chat.id]['phone'] = message.text.strip()
-    if re.match(r'^79\d{9}$',
-                user_states[message.chat.id]['phone']):
-        # config.phone = phone_number
-        editUser.update_user_all(user_states[message.chat.id]['phone'], user_states[message.chat.id]['name'],
-                                 message.from_user.id)
-        markup = types.InlineKeyboardMarkup()
-        bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
-        bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
-        markup.row(bottom1, bottom2)
-        bot.send_message(message.chat.id,
-                         f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
-                         reply_markup=markup)
+    if message.content_type == 'text':
+        user_states[message.chat.id]['phone'] = message.text.strip()
+        if re.match(r'^79\d{9}$',
+                    user_states[message.chat.id]['phone']):
+            editUser.update_user_all(user_states[message.chat.id]['phone'], user_states[message.chat.id]['name'],
+                                     message.from_user.id)
+            markup = types.InlineKeyboardMarkup()
+            bottom1 = types.InlineKeyboardButton('Верно', callback_data='true_enter')
+            bottom2 = types.InlineKeyboardButton('Неверно', callback_data='edit_data')
+            markup.row(bottom1, bottom2)
+            bot.send_message(message.chat.id,
+                             f'Проверьте, пожалуйста, ваши данные на корректность:\n ФИО: {user_states[message.chat.id]['name']}\n Номер телефона: {user_states[message.chat.id]['phone']}',
+                             reply_markup=markup)
+        else:
+            # Неверный формат номера телефона
+            bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться на 79).")
+            bot.register_next_step_handler(message, get_all)
     else:
-        # Неверный формат номера телефона
-        bot.send_message(message.chat.id, "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться на 79).")
+        bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
+                                          "Пожалуйста, введите корректный номер телефона (номер должен состоять из 11 цифр и начинаться на 79).")
         bot.register_next_step_handler(message, get_all)
 
 
