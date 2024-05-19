@@ -13,7 +13,7 @@ def generate_unique_token():
     items = cur.fetchall()
     # Получаем результат запроса
     for el in items:
-        existing_tokens.add(int(el[5]))
+        existing_tokens.add(int(el[4]))
     cur.close()
     conn.close()
     available_tokens = set(range(1, 4)) - existing_tokens
