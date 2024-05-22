@@ -5,6 +5,7 @@ import sqlite3
 
 bot = telebot.TeleBot(config.TOKEN)
 
+
 def generate_unique_token():
     existing_tokens = set()
     conn = sqlite3.connect('shop.sql')
@@ -19,7 +20,7 @@ def generate_unique_token():
     available_tokens = set(range(1, 4)) - existing_tokens
     if not available_tokens:
         return None
-    return (random.choice(list(available_tokens)))
+    return random.choice(list(available_tokens))
 
 
 def delete_art(token):

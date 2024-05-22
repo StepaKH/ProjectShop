@@ -42,7 +42,6 @@ def update_user_card(card, user_id):
     conn = sqlite3.connect('shop.sql')
     cur = conn.cursor()
 
-    # Выполняем SQL-запрос на обновление имени пользователя
     cur.execute("UPDATE users SET has_card = ? WHERE tgId = ?", (card, user_id))
     conn.commit()
 
