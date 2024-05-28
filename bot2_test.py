@@ -42,6 +42,7 @@ def start(message):
                      parse_mode='html', reply_markup=markup)
 
 
+@bot.message_handler(commands=['delete'])
 @bot.message_handler(func=lambda message: message.text.lower() == 'удалить товар')
 def getart(message):
     bot.send_message(message.chat.id, "Введите, пожалуйста, aртикул товара, который требуется удалить",
@@ -98,10 +99,14 @@ def get_price(message):
     if message.content_type == 'text':
         global price_product
         price_product = message.text.strip()
-        bot.send_message(message.chat.id, "Введите цену товара в одном из следующих форматах:\n"
-                                          "Число м: Пример - 10 м\n"
-                                          "Число см: Пример - 10 см")
-        bot.register_next_step_handler(message, get_width)
+        if re.match(r"^[1-9]\d+$", price_product):
+            bot.send_message(message.chat.id, "Введите ширину товара в одном из следующих форматах:\n"
+                                              "Число м: Пример - 10 м\n"
+                                              "Число см: Пример - 10 см")
+            bot.register_next_step_handler(message, get_width)
+        else:
+            bot.send_message(message.chat.id, "Пожалуйста, введите цену товара в правильном формате.")
+            bot.register_next_step_handler(message, get_price)
     else:
         bot.send_message(message.chat.id, "Я не умею обрабатывать такие сообщения(\n"
                                           "Пожалуйста, введите цену товара в правильном формате.")
@@ -112,7 +117,7 @@ def get_width(message):
     if message.content_type == 'text':
         global width_product
         width_product = message.text.strip()
-        if re.match(r'^\d+\s+[a-zA-Zа-яА-ЯёЁ]+$', width_product):
+        if re.match(r"^[1-9]\d*\sм$", width_product) or re.match(r"^[1-9]\d*\sсм$", width_product):
             bot.send_message(message.chat.id, "Введите фотографию товара")
             bot.register_next_step_handler(message, get_photo)
         else:
@@ -150,7 +155,7 @@ def get_photo(message):
 
         bot.send_message(message.chat.id, f'Проверьте, пожалуйста, введенные данные на корректность:')
         bot.send_photo(message.chat.id, img,
-                        caption=f'Name: {name_product}\n Price: {price_product}\n Width: {width_product}')
+                        caption=f'Name: {name_product}\n Price: {price_product} ₽/м\n Width: {width_product}')
         bot.send_message(message.chat.id,
                        f'Какого же Ваше решение?)',
                        reply_markup=markup)
@@ -168,7 +173,7 @@ def callback_message(callback):
         cur.execute(
 
             f"INSERT INTO tokens (name, price, width, token) VALUES (?, ?, ?, ?)",
-            (name_product, price_product, width_product, random_number))
+            [name_product, price_product + " ₽/м", width_product, random_number])
         conn.commit()
         cur.close()
         conn.close()
