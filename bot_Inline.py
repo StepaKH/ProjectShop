@@ -8,7 +8,6 @@ import editUser
 import win32file
 import win32con
 import time
-import asyncio
 
 from telebot import types
 
@@ -431,6 +430,7 @@ def callback_message(callback):
                          reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(callback.message, get_name_from_all)
     elif callback.data == 'end':
+        user_states[callback.message.chat.id]['waiting_for_button'] = False
         bot.send_message(callback.message.chat.id, f'Были рады видеть вас в нашем магазине, приходите еще😊',
                          reply_markup=types.ReplyKeyboardRemove())
 
@@ -445,6 +445,8 @@ def process_birthday_input(callback, message):
             mainKeyboard(message)
         elif re.match(r'^(0[1-9]|1[0-9]|2[0-9]|3[0-1])\.(0[1-9]|1[0-2])\.(19[3-9][0-9]|20[01][0-9])$',
                       user_states[callback.message.chat.id]['birthday']):
+            user_states[callback.message.chat.id]['waiting_for_button'] = True
+            bot.register_next_step_handler(callback.message, check_button_press)
             bot.send_message(config.manager_id, f'Создать дисконтную карту!\n'
                                                 f'Информация о пользователе:\n'
                                                 f'Ник пользователя - {callback.message.chat.username}\n'
@@ -452,12 +454,6 @@ def process_birthday_input(callback, message):
                                                 f'Номер телефона - {user_states[callback.message.chat.id]['phone']}\n'
                                                 f'Дата рождения - {user_states[callback.message.chat.id]['birthday']}')
 
-            # while check_file_lock('cards.xlsx'):
-            #     print(f"Файл cards.xlsx заблокирован, ожидание...")
-            #     time.sleep(1)
-            # checkCard.create_card('cards.xlsx', user_states[callback.message.chat.id]['name'],
-            #                       user_states[callback.message.chat.id]['phone'],
-            #                       user_states[callback.message.chat.id]['birthday'])
             editUser.update_user_card(2, user_states[callback.message.chat.id]['tgId'])
             user_states[callback.message.chat.id]['card'] = 2
             consultation(callback)
@@ -515,6 +511,7 @@ def end_of_work(message):
             else:
                 if user_states[message.chat.id]['price']:
                     del user_states[message.chat.id]['price']
+                user_states[message.chat.id]['waiting_for_button'] = True
                 markup = types.InlineKeyboardMarkup()
                 bottom1 = types.InlineKeyboardButton("Ввести размер повторно", callback_data="end_of_buy")
                 bottom2 = types.InlineKeyboardButton("Закончить", callback_data="end")
@@ -524,6 +521,7 @@ def end_of_work(message):
                                  f"Нажмите на кнопку - Ввести размер повторно, и введите размер меньший, чем {user_states[message.chat.id]['product_data'][3]}\n"
                                  f"Или нажмите на кнопку - Закончить, если Вам недостаточно товара, который есть в наличии",
                                  reply_markup=markup)
+                bot.register_next_step_handler(message, check_button_press)
         else:
             bot.send_message(message.chat.id,
                              "Пожалуйста, введите корректный размер ткани (он состоит ТОЛЬКО из цифр).")
@@ -643,12 +641,10 @@ def check_button_press(message):
         bot.send_message(chat_id, "Пожалуйста, используйте кнопки для подтверждения или изменения данных.")
         bot.register_next_step_handler(message, check_button_press)
     else:
-        if re.match('^/.*$', message.text.strip()):
-            mainKeyboard(message)
+        return
 
 
 def consultation(callback):
-    user_states[callback.message.chat.id]['waiting_for_button'] = True
     markup111 = types.InlineKeyboardMarkup()
     bottom1 = types.InlineKeyboardButton("Консультация", callback_data='advice')
     bottom2 = types.InlineKeyboardButton("Завершение", callback_data='end_of_buy')
